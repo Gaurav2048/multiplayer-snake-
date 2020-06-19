@@ -1,17 +1,11 @@
 import React from 'react';
 import Square from './Square';
-import Prey from './Prey';
-import {
-  copyObj,
-  isGameOver,
-  positionPrey,
-  isPreyHunted,
-} from '../utils/index';
+import { copyObj, isGameOver, isPreyHunted } from '../utils/index';
 import '../App.css';
 
 class Snake extends React.Component {
-  constructor() {
-    super();
+  constructor(props) {
+    super(props);
     this.state = {
       Snake: [{ top: 39, left: 39, direction: 38 }],
       isGameOn: false,
@@ -19,6 +13,8 @@ class Snake extends React.Component {
       isDirectionChanged: true,
       isGameOver: false,
       direction: 38,
+      preyLeft: this.props.preyLeft,
+      preyTop: this.props.preyTop,
     };
   }
 
@@ -26,19 +22,62 @@ class Snake extends React.Component {
   componentWillMount() {}
 
   componentDidMount() {
-    document.addEventListener('keydown', this.onNavigationActionPressed, false);
-    this.setState(positionPrey());
+    if (this.props.listenToNativeEvents) {
+      document.addEventListener(
+        'keydown',
+        this.onNavigationActionPressed,
+        false
+      );
+    }
+
+    // if (this.state.Snake.length !== this.props.score) {
+    //   for (let i = 0; i < this.props.score - this.state.Snake.length; i++) {
+    //     this.increaseLength();
+    //   }
+    // }
+  }
+
+  componentDidUpdate() {
+    if (!this.props.listenToNativeEvents) {
+      if (this.props.hasStarted && !this.state.isGameOn) {
+        console.log('aca', this.props.hasStarted);
+        this.setState(
+          {
+            isGameOn: true,
+          },
+          () => {
+            this.reposition();
+          }
+        );
+      } else {
+        console.log('not started.', this.props.hasStarted);
+      }
+
+      // update length on score .
+
+      if (this.props.score !== this.state.Snake.length - 1) {
+        console.log('inc length');
+
+        this.increaseLength();
+      } else {
+        console.log('donot inc length');
+      }
+    }
   }
 
   componentWillUnmount() {
-    document.removeEventListener(
-      'keydown',
-      this.onNavigationActionPressed,
-      false
-    );
+    if (this.props.listenToNativeEvents) {
+      document.removeEventListener(
+        'keydown',
+        this.onNavigationActionPressed,
+        false
+      );
+    }
   }
 
   reposition = async () => {
+    console.log('on reposition.', this.props.speed);
+
     await setTimeout(() => {
       const newSnake = this.state.Snake;
 
@@ -46,8 +85,14 @@ class Snake extends React.Component {
         newSnake[i].direction = newSnake[i - 1].direction;
       }
 
-      if (this.state.isDirectionChanged) {
-        newSnake[0].direction = this.state.direction;
+      if (this.props.listenToNativeEvents) {
+        if (this.state.isDirectionChanged) {
+          newSnake[0].direction = this.state.direction;
+        }
+      } else {
+        if (this.props.isDirectionChanged) {
+          newSnake[0].direction = this.props.direction;
+        }
       }
 
       newSnake.map((square, index) => {
@@ -60,20 +105,31 @@ class Snake extends React.Component {
 
       if (
         isPreyHunted(
-          { left: this.state.preyLeft, top: this.state.preyTop },
+          { left: this.props.preyLeft, top: this.props.preyTop },
           { top: newSnake[0].top, left: newSnake[0].left }
         )
       ) {
-        this.props.score();
+        // this.props.score();
         this.increaseLength();
-        this.setState(positionPrey());
+        // fire catch callback
+        this.props.onHunt({ snakeId: this.props.snakeId });
+        console.log('prey cought');
       }
 
       this.setState(isGameOver(this.state.Snake));
-      this.setState({ Snake: newSnake, isDirectionChanged: false });
-      if (!this.state.isGameOver) this.reposition();
-      else alert('game Over!');
-    }, this.props.speed);
+
+      if (this.props.listenToNativeEvents) {
+        this.setState({ Snake: newSnake, isDirectionChanged: false });
+        if (!this.state.isGameOver) this.reposition();
+        else alert('game Over!');
+      } else {
+        this.setState({ Snake: newSnake }, () => {
+          this.props.resetDirectionChange(this.props.snakeId);
+        });
+        if (!this.state.isGameOver) this.reposition();
+        else alert('game Over!');
+      }
+    }, 400);
   };
 
   increaseLength = () => {
@@ -99,12 +155,24 @@ class Snake extends React.Component {
 
   onNavigationActionPressed = (e) => {
     if (e.keyCode === 32) {
+      if (!this.props.listenToNativeEvents) {
+        return;
+      }
       if (this.state.hasStarted === false) {
         this.reposition();
-        this.setState({
-          hasStarted: true,
-          isGameOn: true,
-        });
+        this.setState(
+          {
+            hasStarted: true,
+            // isGameOn: true,
+          },
+          () => {
+            this.props.keyCode({
+              snakeId: this.props.snakeId,
+              type: 'start',
+              keyCode: e.keyCode,
+            });
+          }
+        );
       }
     } else {
       if (this.state.Snake[0].direction !== e.keyCode) {
@@ -120,8 +188,12 @@ class Snake extends React.Component {
               direction: e.keyCode,
             },
             () => {
-              if (this.state.isGameOn) {
-                this.props.keyCode(e.keyCode);
+              if (this.state.hasStarted) {
+                this.props.keyCode({
+                  keyCode: e.keyCode,
+                  snakeId: this.props.snakeId,
+                  type: 'move',
+                });
               }
             }
           );
@@ -134,9 +206,13 @@ class Snake extends React.Component {
     return (
       <div>
         {this.state.Snake.map((square, index) => (
-          <Square left={square.left} top={square.top} key={index} />
+          <Square
+            left={square.left}
+            top={square.top}
+            key={index}
+            color={this.props.color}
+          />
         ))}
-        <Prey left={this.state.preyLeft} top={this.state.preyTop} />
       </div>
     );
   }

@@ -13,7 +13,11 @@ function Square(props) {
   return (
     <div
       className="Snake_Square"
-      style={{ left: `${left}vh`, top: `${top}vh` }}
+      style={{
+        left: `${left}vh`,
+        top: `${top}vh`,
+        backgroundColor: props.color,
+      }}
     ></div>
   );
 }

@@ -32,7 +32,9 @@ const isPreyHunted = (preyPosition, snakePosition) => {
     snakePosition.top <= topRange[1]
   ) {
     return true;
-  } else return false;
+  } else {
+    return false;
+  }
 };
 
 const isGameOver = (snake) => {

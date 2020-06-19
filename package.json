@@ -11,6 +11,10 @@
     "react-scripts": "3.4.1",
     "socket.io-client": "^2.3.0"
   },
+  "engines": {
+    "npm": "5.7.1",
+    "node": "9.5.0"
+  },
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
